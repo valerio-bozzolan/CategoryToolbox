@@ -1,0 +1,49 @@
+{
+	"name": "CategoryToolbox",
+	"version": "0.0.0",
+	"author": [
+		"Valerio Bozzolan"
+	],
+	"url": "https://www.mediawiki.org/wiki/Extension:CategoryToolbox",
+	"descriptionmsg": "categorytoolbox-desc",
+	"license-name": "GNU GPL v3+",
+	"type": "other",
+	"AutoloadClasses": {
+		"CategoryToolboxHooks": "CategoryToolbox.hooks.php",
+		"CategoryToolbox_LuaLibrary": "includes/CategoryToolbox_LuaLibrary.php"
+	},
+	"config": {
+		"BoilerPlateEnableFoo": true
+	},
+	"ExtensionMessagesFiles": {
+		"CategoryToolboxAlias": "CategoryToolbox.i18n.alias.php"
+	},
+	"Hooks": {
+		"NameOfHook": [
+			"CategoryToolboxHooks::onNameOfHook"
+		]
+	},
+	"MessagesDirs": {
+		"CategoryToolbox": [
+			"i18n"
+		]
+	},
+	"ResourceModules": {
+		"ext.categoryToolbox.foo": {
+			"scripts": [
+				"modules/ext.categoryToolbox.js",
+				"modules/ext.categoryToolbox.foo.js"
+			],
+			"styles": [
+				"modules/ext.categoryToolbox.foo.css"
+			],
+			"messages": [],
+			"dependencies": []
+		}
+	},
+	"ResourceFileModulePaths": {
+		"localBasePath": "",
+		"remoteExtPath": "categoryToolbox"
+	},
+	"manifest_version": 1
+}
