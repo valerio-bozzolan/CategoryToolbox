@@ -10,15 +10,15 @@ To know if the `Foo` page from namespace zero in in the `Category:Category name`
 
     local is = mw.ext.cattools.categoryHasPage('Category name', 0, 'Foo')
 
-To retrieve all the sub-categories of `Category:Category name`):
+To retrieve all the sub-categories of `Category:Category name`:
 
     --                                   Namespace of categories ↓
     local pages = mw.ext.cattools.categoryPages('Category name', 14)
     for _, page in pairs( pages )
-	-- page.id:    Page ID (numeric)
+        -- page.id:    Page ID (numeric)
         -- page.ns:    Namespace (numeric)
-	-- page.title: Page title without prefix (string)
-	-- page.type:  Page type ('page', 'subcat' or 'file')
+        -- page.title: Page title without prefix (string)
+        -- page.type:  Page type ('page', 'subcat' or 'file')
     end
 
 ## License
