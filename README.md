@@ -3,7 +3,12 @@
 **CategoryToolbox** is a MediaWiki extension that want to allow categories to be read from Lua.
 
 ## Installation
-Why? Actually it only prints `12345banana`.
+As every MediaWiki extension. It obviusly needs Scribunto in order to extend Lua.
+
+## Lua entry points
+To know if the `Foo` page from namespace zero in in the `Category name` category:
+
+    mw.ext.cattools.categoryHasPage('Category name', 0, 'Foo')
 
 ## License
 Copyright (C) 2017 Valerio Bozzolan
