@@ -1,6 +1,8 @@
 local cattools = {}
 local php
 
+local CAT_NS = 14
+
 function cattools.setupInterface( options )
 	-- Remove setup function
 	cattools.setupInterface = nil
@@ -25,7 +27,7 @@ local function has_prefix(title, prefix)
 end
 
 local function strip_prefix(title, prefix)
-	local len = mw.ustring.len(prefix .. ':')
+	local len = mw.ustring.len(prefix) + 2
 	return mw.ustring.sub(title, len)
 end
 
@@ -51,7 +53,7 @@ local function only_name(title, namespace)
 end
 
 function cattools.categoryHasPage( category, page_namespace, page_title )
-	category = only_name(category, 14)
+	category = only_name(category, CAT_NS)
 	return php.categoryHasPage( category, page_namespace, page_title )
 end
 
@@ -61,6 +63,11 @@ function cattools.categoryHasTitleObject( category, title )
 		error("Not a valid title object")
 	end
 	return php.categoryHasPage( category, title.namespace, title.text )
+end
+
+function cattools.categoryPages( category, page_namespace, cl_sortkey_prefix, limit, offset )
+	category = only_name(category, CAT_NS)
+	return php.categoryPages( category, page_namespace, cl_sortkey_prefix, limit, offset )
 end
 
 return cattools

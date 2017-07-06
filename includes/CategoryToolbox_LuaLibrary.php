@@ -18,6 +18,13 @@
 
 class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 
+	/**
+	 * Having more than some results is not the intended use of this class. So here is the limit.
+	 *
+	 * Note: Optimize yourself your results specifing all the useful filters as e.g. `$cl_sortkey_prefix`.
+	 */
+	const DEFAULT_LIMIT = 25;
+
 	protected $db;
 
 	function register() {
@@ -32,25 +39,44 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	}
 
 	/**
-	 * To retrieve all the pages in a certain category.
+	 * Check if a category contains a certain page.
+	 *
+	 * To maintain the query clean you always have to specify the namespace and you have
+	 * to remove the prefix from the wanted page title.
 	 *
 	 * @param string $category_name Category name (without prefix)
 	 * @param int $page_namespace Page namespace (number)
-	 * @return mixed Lua object
+	 * @param string $page_title Page title (without prefix)
+	 * @return mixed Lua boolean
 	 */
-	public function categoryPages($category_name, $page_namespace = null, $limit = 50, $offset = null) {
-		return self::categoryLinksToLuaTable( $this->selectCategoryLinks($category_name, $page_namespace, null, $limit, $offset) );
+	public function categoryHasPage($category_name, $page_namespace, $page_title) {
+		return [
+			1 === $this->selectCategoryLinks($category_name, $page_namespace, $page_title)->numRows()
+		];
 	}
 
 	/**
-	 * To retrieve if a certain page is linked into a category.
+	 * Retrieve pages contained in a category.
+	 *
+	 * When you want to retrieve only the top pages
+	 * (e.g. when the category is callle from these pages as `[[Category:Name| ]]` or whatever)
+	 * just specify the sortkey prefix using `$cl_sortkey_prefix` (e.g. specify a single space).
+	 *
+	 * This is *not* a way to count the pages in a category. Use `mw.site.stats.pagesInCategory` instead.
 	 *
 	 * @param string $category_name Category name (without prefix)
-	 * @param string $page_title Page title (without prefix)
 	 * @param int $page_namespace Page namespace (number)
+	 * @param string $cl_sortkey_prefix Value of the `categorylinks`.`cl_sortkey_prefix` field. Usually it is '' or ' '. E.g. if set to ' ' it can retrieves only sub-pages calling `[[Category:Name| ]]`
+	 * @param int $limit Result limit. Even if this method is intended only to retrieve a couple of sub-categories, it can be used also for pages.
+	 * @param int $offset Result offset.
+	 * @return mixed Lua table
 	 */
-	public function categoryHasPage($category_name, $page_namespace, $page_title) {
-		return self::toLuaBool( 1 === $this->selectCategoryLinks($category_name, $page_namespace, $page_title)->numRows() );
+	public function categoryPages($category_name, $page_namespace = null, $cl_sortkey_prefix = null, $limit = null, $offset = null) {
+		return [
+			self::categoryLinksToLuaTable(
+				$this->selectCategoryLinks($category_name, $page_namespace, null, $cl_sortkey_prefix, $limit, $offset)
+			)
+		];
 	}
 
 	/**
@@ -59,10 +85,12 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	 * @param string $category_name Category name (without prefix)
 	 * @param int $page_namespace Restrict to a specific namespace (number)
 	 * @param string $page_title Restrict to a specific page title (without prefix)
-	 * @param int $limit Result limit. Even if this method is intended only to retrieve a couple of sub-categories, it should be used also for pages.
+	 * @param string $cl_sortkey_prefix Value of the `categorylinks`.`cl_sortkey_prefix` field. Usually it is '' or ' '.
+	 * @param int $limit Result limit. Even if this method is intended only to retrieve a couple of sub-categories, it can be used also for pages.
+	 * @param int $offset Result offset.
 	 * @return IResultWrapper|bool
 	 */
-	private function selectCategoryLinks($category_name, $page_namespace = null, $page_title = null, $limit = 50, $offset = null) {
+	private function selectCategoryLinks($category_name, $page_namespace = null, $page_title = null, $cl_sortkey_prefix = null, $limit = null, $offset = null) {
 
 		$fields = [
 			'cl_type',
@@ -80,11 +108,21 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 			$conditions['page_namespace'] = $page_namespace;
 		}
 
-		if( null === $page_title ) {
-			// Too generic means more results
-			$this->incrementExpensiveFunctionCount();
-		} else {
+		if( null !== $page_title ) {
 			$conditions['page_title'] = $page_title;
+		}
+
+		if( null !== $cl_sortkey_prefix ) {
+			$conditions['cl_sortkey_prefix'] = $cl_sortkey_prefix;
+		}
+
+		if( null === $limit ) {
+			$limit = self::DEFAULT_LIMIT;
+		}
+
+		if( null == $page_title && null === $cl_sortkey_prefix || $limit > self::DEFAULT_LIMIT ) {
+			// I don't know why you are here. We encourage smaller result sets!
+			$this->incrementExpensiveFunctionCount();
 		}
 
 		$options = [
@@ -99,18 +137,19 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	}
 
 	/**
-	 * Giving a database result from `::selectCategoryLinks()` it returns a flat array.
+	 * Get a clean Lua array of objects from `::selectCategoryLinks()` results.
 	 *
 	 * @param IResultWrapper|bool $results Result from the Wikimedia\Rdbms\Database::select
 	 * @return array Lua object
 	 */
 	private static function categoryLinksToLuaTable($results) {
 		$rows = [];
-		foreach($results as $row) {
+		foreach($results as $result) {
 			$rows[] = [
-				'id'   => (int)$row->page_id,
-				'ns'   => (int)$row->page_namespace,
-				'type' =>      $row->cl_type
+				'id'    => (int)$result->page_id,
+				'title' =>      $result->page_title,
+				'ns'    => (int)$result->page_namespace,
+				'type'  =>      $result->cl_type
 			];
 		}
 		return self::toLuaTable( $rows );
@@ -134,15 +173,5 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 			unset( $ar[0] );
 		}
 		return $ar;
-	}
-
-	/**
-	 * Workaround for a Scribunto_LuaLibraryBase bug with boolean values.
-	 *
-	 * @param int $is Boolean value
-	 * @return mixed|null
-	 */
-	private static function toLuaBool($is) {
-		return $is ? [ 1 ] : null;
 	}
 }
