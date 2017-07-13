@@ -37,6 +37,10 @@ end
 * @return string Title without namespace prefix e.g. "Foo" without "Category:"
 ]]--
 local function only_name(title, namespace)
+	if title == nil then
+		error('CategoryToolbox: nil as category?')
+	end
+
 	local ns = mw.site.namespaces[namespace]
 
 	local ns_name, ns_canonical = ns.name, ns.canonicalName
@@ -62,12 +66,41 @@ function cattools.categoryHasTitleObject( category, title )
 	if not title.namespace or not title.text then
 		error("Not a valid title object")
 	end
-	return php.categoryHasPage( category, title.namespace, title.text )
+	return cattools.categoryHasPage( category, title.namespace, title.text )
 end
 
-function cattools.categoryPages( category, page_namespace, cl_sortkey_prefix, limit, offset )
+local function normalize_sortkey(sortkey)
+	return sortkey == 'SPACE_PREFIXED' and ' ' or sortkey
+end
+
+local function normalize_args(args)
+	return {
+		newer   = args.newer,
+		sortkey = normalize_sortkey(args.sortkey),
+		limit   = args.limit,
+		offset  = args.offset
+	}
+end
+
+function cattools.categoryPages( category, page_namespace, args )
 	category = only_name(category, CAT_NS)
-	return php.categoryPages( category, page_namespace, cl_sortkey_prefix, limit, offset )
+	return php.categoryPages( category, page_namespace, normalize_args(args) )
+end
+
+local function only_first(results)
+	return results and results[1] or nil
+end
+
+function cattools.categoryNewerPage( category, page_namespace, args )
+	args.newer = true
+	args.limit = 1
+	return only_first( cattools.categoryPages( category, page_namespace, args ) )
+end
+
+function cattools.categoryOlderPage( category, page_namespace, args )
+	args.newer = false
+	args.limit = 1
+	return only_first( cattools.categoryPages( category, page_namespace, args ) )
 end
 
 return cattools

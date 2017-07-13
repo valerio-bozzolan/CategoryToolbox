@@ -20,8 +20,6 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 
 	/**
 	 * Having more than some results is not the intended use of this class. So here is the limit.
-	 *
-	 * Note: Optimize yourself your results specifing all the useful filters as e.g. `$cl_sortkey_prefix`.
 	 */
 	const DEFAULT_LIMIT = 25;
 
@@ -58,23 +56,19 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	/**
 	 * Retrieve pages contained in a category.
 	 *
-	 * When you want to retrieve only the top pages
-	 * (e.g. when the category is callle from these pages as `[[Category:Name| ]]` or whatever)
-	 * just specify the sortkey prefix using `$cl_sortkey_prefix` (e.g. specify a single space).
-	 *
 	 * This is *not* a way to count the pages in a category. Use `mw.site.stats.pagesInCategory` instead.
 	 *
 	 * @param string $category_name Category name (without prefix)
 	 * @param int $page_namespace Page namespace (number)
-	 * @param string $cl_sortkey_prefix Value of the `categorylinks`.`cl_sortkey_prefix` field. Usually it is '' or ' '. E.g. if set to ' ' it can retrieves only sub-pages calling `[[Category:Name| ]]`
+	 * @param array $args More arguments
 	 * @param int $limit Result limit. Even if this method is intended only to retrieve a couple of sub-categories, it can be used also for pages.
 	 * @param int $offset Result offset.
 	 * @return mixed Lua table
 	 */
-	public function categoryPages($category_name, $page_namespace = null, $cl_sortkey_prefix = null, $limit = null, $offset = null) {
+	public function categoryPages($category_name, $page_namespace = null, $args = [] ) {
 		return [
 			self::categoryLinksToLuaTable(
-				$this->selectCategoryLinks($category_name, $page_namespace, null, $cl_sortkey_prefix, $limit, $offset)
+				$this->selectCategoryLinks($category_name, $page_namespace, null, $args )
 			)
 		];
 	}
@@ -85,58 +79,82 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	 * @param string $category_name Category name (without prefix)
 	 * @param int $page_namespace Restrict to a specific namespace (number)
 	 * @param string $page_title Restrict to a specific page title (without prefix)
-	 * @param string $cl_sortkey_prefix Value of the `categorylinks`.`cl_sortkey_prefix` field. Usually it is '' or ' '.
-	 * @param int $limit Result limit. Even if this method is intended only to retrieve a couple of sub-categories, it can be used also for pages.
-	 * @param int $offset Result offset.
+	 * @param array $args More arguments:
+		* 'sortkey' => string|null: Can be used to filter category entries basing on which character index them.
+		* 'newer'   => bool|null:   Can be used to order by the latest update.
+	 	* 'limit'   => int|null:    Intended only to retrieve a couple of sub-categories, can be used to limit the result.
+		* 'offset'  => int|null:    Can be used to skip n results.
 	 * @return IResultWrapper|bool
 	 */
-	private function selectCategoryLinks($category_name, $page_namespace = null, $page_title = null, $cl_sortkey_prefix = null, $limit = null, $offset = null) {
+	private function selectCategoryLinks($category_name, $page_namespace = null, $page_title = null, $args = [] ) {
 
-		$fields = [
-			'cl_type',
+		// Database fields to be selected
+		$select = [
+			'cl_type', // 'page' 'subcat' 'file'
 			'page_id',
 			'page_title',
-			'page_namespace'
+			'page_namespace' // int
 		];
 
+		// Database fields to be eventually selected
+		if( isset( $args['newer'] ) ) {
+			$select[] = 'cl_timestamp';
+		}
+
 		$conditions = [
-			'cl_to' => self::normalizePageTitle( $category_name ),
+			// Restrict to a certain category
+			'cl_to' => self::space2underscore( $category_name ),
+
+			// Join category and pages
 			'cl_from = page_id'
 		];
 
+		// Restrict to a certain namespace?
 		if( null !== $page_namespace ) {
 			$conditions['page_namespace'] = $page_namespace;
 		}
 
+		// Restrict to a certain page title?
 		if( null !== $page_title ) {
-			$conditions['page_title'] = self::normalizePageTitle( $page_title );
+			$conditions['page_title'] = self::space2underscore( $page_title );
 		}
 
-		if( null !== $cl_sortkey_prefix ) {
-			$conditions['cl_sortkey_prefix'] = $cl_sortkey_prefix;
+		// Restrict to a certain prefix sortkey?
+		if( isset( $args['sortkey'] ) ) {
+			$conditions['cl_sortkey_prefix'] = $args['sortkey'];
 		}
 
-		if( null === $limit ) {
-			$limit = self::DEFAULT_LIMIT;
+		$options = [];
+
+		// Order by timestamp?
+		if( isset( $args['newer'] ) ) {
+			$options['ORDER BY'] = 'cl_timestamp ' . (
+				$args['newer'] ? 'DESC' : 'ASC'
+			);
 		}
 
-		if( null == $page_title && null === $cl_sortkey_prefix || $limit > self::DEFAULT_LIMIT ) {
-			// I don't know why you are here. We encourage smaller result sets!
+		// Limit results
+		$options['LIMIT'] = isset( $args['limit'] )
+			? (int) $args['limit']
+			: self::DEFAULT_LIMIT;
+
+		// Set an offset?
+		if( isset( $args['offset'] ) ) {
+			$options['OFFSET'] = (int) $args['offset'];
+		}
+
+		// Where are we from? Boh!
+		// Is there life on Mars? Boh!
+		// Should a simple read-only query being considered expensive? Boh!
+		// How many minutes have you wasted in thinking if the next line should be commented? 23!
+		$this->incrementExpensiveFunctionCount();
+
+		// The user want more?
+		if( null == $page_namespace || null == $page_title || $options['LIMIT'] > self::DEFAULT_LIMIT ) {
 			$this->incrementExpensiveFunctionCount();
 		}
 
-		$options = [
-			'LIMIT' => $limit
-		];
-
-		if( null !== $offset ) {
-			$options['OFFSET'] = $offset;
-		}
-
-		// I don't think that a query means expensiveness as default. Anyway...
-		$this->incrementExpensiveFunctionCount();
-
-		return $this->db->select( ['categorylinks', 'page'] , $fields, $conditions, __METHOD__, $options );
+		return $this->db->select( ['categorylinks', 'page'] , $select, $conditions, __METHOD__, $options );
 	}
 
 	/**
@@ -148,12 +166,21 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	private static function categoryLinksToLuaTable($results) {
 		$rows = [];
 		foreach($results as $result) {
-			$rows[] = [
+			$row = [
 				'id'    => (int)$result->page_id,
-				'title' =>      $result->page_title,
 				'ns'    => (int)$result->page_namespace,
 				'type'  =>      $result->cl_type
 			];
+
+			// Cleaning title
+			$row['title'] = self::underscore2space( $result->page_title );
+
+			// Optional columns
+			if( isset( $result->cl_timestamp ) ) {
+				$row['date'] = $result->cl_timestamp;
+			}
+
+			$rows[] = $row;
 		}
 		return self::toLuaTable( $rows );
 	}
@@ -181,10 +208,20 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	/**
 	 * Normalize a page title. E.g. "Category foo" → "Category_foo".
 	 *
-	 * @param string $page_title Page title to be normalized
-	 * @return string Page title normalized
+	 * @param string
+	 * @return string
 	 */
-	private static function normalizePageTitle($page_title) {
+	private static function space2underscore($page_title) {
 		return str_replace(' ', '_', $page_title);
+	}
+
+	/**
+	 * Ripristinate the spaces. E.g. "Category_foo" → "Category foo".
+	 *
+	 * @param string
+	 * @return string
+	 */
+	private static function underscore2space($page_title) {
+		return str_replace('_', ' ', $page_title);
 	}
 }
