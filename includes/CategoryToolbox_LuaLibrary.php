@@ -133,6 +133,9 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 			$options['OFFSET'] = $offset;
 		}
 
+		// I don't think that a query means expensiveness as default. Anyway...
+		$this->incrementExpensiveFunctionCount();
+
 		return $this->db->select( ['categorylinks', 'page'] , $fields, $conditions, __METHOD__, $options );
 	}
 
