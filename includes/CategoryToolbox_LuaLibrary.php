@@ -100,7 +100,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 		];
 
 		$conditions = [
-			'cl_to' => $category_name,
+			'cl_to' => self::normalizePageTitle( $category_name ),
 			'cl_from = page_id'
 		];
 
@@ -109,7 +109,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 		}
 
 		if( null !== $page_title ) {
-			$conditions['page_title'] = $page_title;
+			$conditions['page_title'] = self::normalizePageTitle( $page_title );
 		}
 
 		if( null !== $cl_sortkey_prefix ) {
@@ -173,5 +173,15 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 			unset( $ar[0] );
 		}
 		return $ar;
+	}
+
+	/**
+	 * Normalize a page title. E.g. "Category foo" → "Category_foo".
+	 *
+	 * @param string $page_title Page title to be normalized
+	 * @return string Page title normalized
+	 */
+	private static function normalizePageTitle($page_title) {
+		return str_replace(' ', '_', $page_title);
 	}
 }
