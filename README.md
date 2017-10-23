@@ -3,23 +3,43 @@
 **CategoryToolbox** is a MediaWiki extension that want to allow categories to be read from Lua.
 
 ## Installation
-As every MediaWiki extension. It obviusly needs Scribunto in order to extend Lua.
+As every MediaWiki extension. It obviusly needs Scribunto in order to extend Lua in MediaWiki.
 
-## Lua entry points
-To know if the `Foo` page from namespace zero in in the `Category:Category name`:
+## Features
+To know the most recent file added to `Category:Category name`:
 
-    local is = mw.ext.cattools.categoryHasPage('Category name', 0, 'Foo')
+    mw.ext.cattools.categoryNewerPage('Category:Category name', 6)
+    -- Yes: { ns = 6, title = 'Example.svg', date = 'YYYY-MM-DD 23:59:59' }
+    -- No:  ?
 
-To retrieve all the sub-categories of `Category:Category name`:
+To know the less recent article added to `Category:Category name`
 
-    --                                   Namespace of categories ↓
-    local pages = mw.ext.cattools.categoryPages('Category name', 14)
-    for _, page in pairs( pages )
-        -- page.id:    Page ID (numeric)
-        -- page.ns:    Namespace (numeric)
-        -- page.title: Page title without prefix (string)
-        -- page.type:  Page type ('page', 'subcat' or 'file')
-    end
+    mw.ext.cattools.categoryOlderPage('Category:Category name', 0)
+    -- Yes: { ns = 0, title = 'Free software', date = 'YYYY-MM-DD 23:59:59' }
+    -- No:  ?
+
+To know if the `Foo` page is in the `Category:Category name`:
+
+    mw.ext.cattools.categoryHasPage('Category:Category name', 'Foo')
+    -- Yes: true
+    -- No:  false
+
+The above, but recursively:
+
+    mw.ext.cattools.isPageInCategoryRecursively('Foo', 'Category:Category name')
+    -- Yes: integer (page ID)
+    -- No:  false
+
+To know if the pages "A", "B", "C" are in all the categories "X", "Y", "Z":
+
+    mw.ext.cattools.arePagesInCategoryRecursively(
+     { 'Foo', 'Bar' },
+     { 'Category:X`, `Category:Y`, `Category:Z` }
+    )
+    -- All Yes:       { 1234 = true, 1235 = true }
+    -- Only "Bar" no: { 1234 = true, 1235 = false }
+
+Note that, where the input is a category, you can insert "Category:Foo" as well as only "Foo".
 
 ## License
 Copyright (C) 2017 Valerio Bozzolan
