@@ -1,8 +1,6 @@
 local cattools = {}
 local php
 
-local CAT_NS = 14
-
 function cattools.setupInterface( options )
 	-- Remove setup function
 	cattools.setupInterface = nil
@@ -22,51 +20,10 @@ function cattools.setupInterface( options )
 	package.loaded['mw.ext.cattools'] = cattools
 end
 
-local function has_prefix(title, prefix)
-	return nil ~= mw.ustring.find(title, prefix .. ':')
-end
-
-local function strip_prefix(title, prefix)
-	local len = mw.ustring.len(prefix) + 2
-	return mw.ustring.sub(title, len)
-end
-
---[[
-* @param string title Title in various form e.g. "Category:Foo", "Categoria:Foo", or only "Foo"
-* @param int namespace Namespace number
-* @return string Title without namespace prefix e.g. "Foo" without "Category:"
-]]--
-local function only_name(title, namespace)
-	if title == nil then
-		error('CategoryToolbox: nil as category?')
-	end
-
-	local ns = mw.site.namespaces[namespace]
-
-	local ns_name, ns_canonical = ns.name, ns.canonicalName
-
-	if has_prefix(title, ns_name) then
-		return strip_prefix(title, ns_name)
-	end
-
-	if has_prefix(title, ns_canonical) then
-		return strip_prefix(title, ns_canonical)
-	end
-
-	return title
-end
-
-function cattools.categoryHasPage( category, page_namespace, page_title )
-	category = only_name(category, CAT_NS)
-	return php.categoryHasPage( category, page_namespace, page_title )
-end
-
-function cattools.categoryHasTitleObject( category, title )
-	title = title or mw.title.getCurrentTitle()
-	if not title.namespace or not title.text then
-		error("Not a valid title object")
-	end
-	return cattools.categoryHasPage( category, title.namespace, title.text )
+function cattools.categoryHasPage( category, page_title )
+	category   = mw.title.new( category )
+	page_title = mw.title.new( page_title )
+	return category and page_title and php.categoryHasPage( category.text, page_title.namespace, page_title.text )
 end
 
 local function normalize_sortkey(sortkey)
@@ -83,8 +40,8 @@ local function normalize_args(args)
 end
 
 function cattools.categoryPages( category, page_namespace, args )
-	category = only_name( category, CAT_NS )
-	return php.categoryPages( category, page_namespace, normalize_args(args) )
+	category = mw.title.new( category )
+	return category and php.categoryPages( category.text, page_namespace, normalize_args(args) )
 end
 
 local function only_first( results )
@@ -111,7 +68,7 @@ function cattools.arePagesInCategoriesRecursively( page_titles, categories, mode
 	local page_IDs = {}
 	for _, page_title in pairs( page_titles ) do
 		local title = mw.title.new( page_title )
-		if nil ~= title then
+		if title then
 			local id = title.id -- expensive
 			if nil ~= id then
 				page_IDs[ #page_IDs + 1 ] = id
@@ -120,15 +77,19 @@ function cattools.arePagesInCategoriesRecursively( page_titles, categories, mode
 	end
 
 	-- use category names instead of categories with prefixes
+	local category_titles = {}
 	for k, category in pairs( categories ) do
-		categories[ k ] = only_name( category, CAT_NS )
+		local category = mw.title.new( category )
+		if category then
+			category_titles[ #category_titles + 1 ] = category.text
+		end
 	end
 
-	return php.arePagesInCategories( page_IDs, categories, mode )
+	return php.arePagesInCategories( page_IDs, category_titles, mode )
 end
 
 function cattools.isPageInCategoryRecursively( page_title, category, mode )
-	return cattools.arePagesInCategoriesRecursively( { page_title }, { category }, mode )
+	return cattools.arePagesInCategoriesRecursively( { page_title }, { category }, mode )[1]
 end
 
 return cattools
