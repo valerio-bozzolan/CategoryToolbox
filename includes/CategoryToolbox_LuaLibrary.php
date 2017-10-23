@@ -18,18 +18,14 @@
 
 class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 
-	/**
-	 * Having more than some results is not the intended use of this class. So here is the limit.
-	 */
-	const DEFAULT_LIMIT = 25;
-
 	protected $db;
 
 	function register() {
 
 		$this->getEngine()->registerInterface( __DIR__ . '/CategoryToolbox.lua', [
-			'categoryHasPage' => [ $this, 'categoryHasPage' ],
-			'categoryPages'   => [ $this, 'categoryPages' ]
+			'categoryHasPage'      => [ $this, 'categoryHasPage' ],
+			'categoryPages'        => [ $this, 'categoryPages' ],
+			'arePagesInCategories' => [ $this, 'arePagesInCategories' ]
 		] );
 
 		// DB_REPLICA is not defined in MediaWiki 1.27.3
@@ -47,10 +43,28 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	 * @param string $page_title Page title (without prefix)
 	 * @return mixed Lua boolean
 	 */
-	public function categoryHasPage($category_name, $page_namespace, $page_title) {
-		return [
-			1 === $this->selectCategoryLinks($category_name, $page_namespace, $page_title)->numRows()
-		];
+	public function categoryHasPage( $category_name, $page_namespace, $page_title ) {
+		$results = $this->selectCategoryLinks( $category_name, $page_namespace, $page_title );
+		return [ 0 < $results->numRows() ];
+	}
+
+	/**
+	 * Check if some pages are in some categories.
+	 *
+	 * @param array $page_IDs Page IDs
+	 * @param array $category_names Category names without prefix
+	 * @param array $mode 'AND' means that the page must be in all categories;
+	 *                    'OR' means that the page must be at least in one category.
+	 * @return mixed Lua table
+	 */
+	public function arePagesInCategories( $page_IDs, $category_names, $mode = 'AND' ) {
+		$cf = new CategoryFinder;
+		$cf->seed( $page_IDs, $category_names, $mode );
+		$result = $cf->run();
+
+		$this->incrementExpensiveFunctionCount();
+
+		return [ self::toLuaTable( $result ) ];
 	}
 
 	/**
@@ -72,6 +86,11 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 			)
 		];
 	}
+
+	/**
+	 * Having more than some results is not the intended use of this class. So here is the limit.
+	 */
+	const DEFAULT_LIMIT = 25;
 
 	/**
 	 * To retrieve what is linked into a category.
@@ -97,7 +116,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 		];
 
 		// Database fields to be eventually selected
-		if( isset( $args['newer'] ) ) {
+		if ( isset( $args['newer'] ) ) {
 			$select[] = 'cl_timestamp';
 		}
 
@@ -110,24 +129,24 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 		];
 
 		// Restrict to a certain namespace?
-		if( null !== $page_namespace ) {
+		if ( null !== $page_namespace ) {
 			$conditions['page_namespace'] = $page_namespace;
 		}
 
 		// Restrict to a certain page title?
-		if( null !== $page_title ) {
+		if ( null !== $page_title ) {
 			$conditions['page_title'] = self::space2underscore( $page_title );
 		}
 
 		// Restrict to a certain prefix sortkey?
-		if( isset( $args['sortkey'] ) ) {
+		if ( isset( $args['sortkey'] ) ) {
 			$conditions['cl_sortkey_prefix'] = $args['sortkey'];
 		}
 
 		$options = [];
 
 		// Order by timestamp?
-		if( isset( $args['newer'] ) ) {
+		if ( isset( $args['newer'] ) ) {
 			$options['ORDER BY'] = 'cl_timestamp ' . (
 				$args['newer'] ? 'DESC' : 'ASC'
 			);
@@ -135,12 +154,12 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 
 		// Limit results
 		$options['LIMIT'] = isset( $args['limit'] )
-			? (int) $args['limit']
+			? (int)$args['limit']
 			: self::DEFAULT_LIMIT;
 
 		// Set an offset?
-		if( isset( $args['offset'] ) ) {
-			$options['OFFSET'] = (int) $args['offset'];
+		if ( isset( $args['offset'] ) ) {
+			$options['OFFSET'] = (int)$args['offset'];
 		}
 
 		// Where are we from? Boh!
@@ -150,7 +169,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 		$this->incrementExpensiveFunctionCount();
 
 		// The user want more?
-		if( null == $page_namespace || null == $page_title || $options['LIMIT'] > self::DEFAULT_LIMIT ) {
+		if ( null == $page_namespace || null == $page_title || $options['LIMIT'] > self::DEFAULT_LIMIT ) {
 			$this->incrementExpensiveFunctionCount();
 		}
 
@@ -165,7 +184,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	 */
 	private static function categoryLinksToLuaTable($results) {
 		$rows = [];
-		foreach($results as $result) {
+		foreach ($results as $result) {
 			$row = [
 				'id'    => (int)$result->page_id,
 				'ns'    => (int)$result->page_namespace,
@@ -176,7 +195,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 			$row['title'] = self::underscore2space( $result->page_title );
 
 			// Optional columns
-			if( isset( $result->cl_timestamp ) ) {
+			if ( isset( $result->cl_timestamp ) ) {
 				$row['date'] = $result->cl_timestamp;
 			}
 

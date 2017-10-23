@@ -83,24 +83,52 @@ local function normalize_args(args)
 end
 
 function cattools.categoryPages( category, page_namespace, args )
-	category = only_name(category, CAT_NS)
+	category = only_name( category, CAT_NS )
 	return php.categoryPages( category, page_namespace, normalize_args(args) )
 end
 
-local function only_first(results)
+local function only_first( results )
 	return results and results[1] or nil
 end
 
-function cattools.categoryNewerPage( category, page_namespace, args )
+function cattools.categoryNewerPage( category_name, page_namespace, args )
 	args.newer = true
 	args.limit = 1
-	return only_first( cattools.categoryPages( category, page_namespace, args ) )
+	return only_first( cattools.categoryPages( category_name, page_namespace, args ) )
 end
 
-function cattools.categoryOlderPage( category, page_namespace, args )
+function cattools.categoryOlderPage( category_name, page_namespace, args )
 	args.newer = false
 	args.limit = 1
-	return only_first( cattools.categoryPages( category, page_namespace, args ) )
+	return only_first( cattools.categoryPages( category_name, page_namespace, args ) )
+end
+
+function cattools.arePagesInCategoriesRecursively( page_titles, categories, mode )
+
+	mode = 'AND' == mode and 'AND' or 'OR'
+
+	-- retrieve page IDs from page titles
+	local page_IDs = {}
+	for _, page_title in pairs( page_titles ) do
+		local title = mw.title.new( page_title )
+		if nil ~= title then
+			local id = title.id -- expensive
+			if nil ~= id then
+				page_IDs[ #page_IDs + 1 ] = id
+			end
+		end
+	end
+
+	-- use category names instead of categories with prefixes
+	for k, category in pairs( categories ) do
+		categories[ k ] = only_name( category, CAT_NS )
+	end
+
+	return php.arePagesInCategories( page_IDs, categories, mode )
+end
+
+function cattools.isPageInCategoryRecursively( page_title, category, mode )
+	return cattools.arePagesInCategoriesRecursively( { page_title }, { category }, mode )
 end
 
 return cattools
