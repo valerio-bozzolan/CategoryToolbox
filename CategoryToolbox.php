@@ -28,10 +28,6 @@ if ( function_exists( 'wfLoadExtension' ) ) {
 		return true;
 	};
 
-	// Keep i18n globals so mergeMessageFileList.php doesn't break
-	$wgMessagesDirs['CategoryToolbox']                = __DIR__ . '/i18n';
-	$wgExtensionMessagesFiles['CategoryToolboxAlias'] = __DIR__ . '/CategoryToolbox.i18n.alias.php';
-
 	wfWarn(
 		'Deprecated PHP entry point used for CategoryToolbox extension. Please use wfLoadExtension ' .
 		'instead, see https://www.mediawiki.org/wiki/Extension_registration for more details.'
