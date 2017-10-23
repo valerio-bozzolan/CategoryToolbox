@@ -9,14 +9,14 @@ As every MediaWiki extension. It obviusly needs Scribunto in order to extend Lua
 To know the most recent file added to `Category:Category name`:
 
     mw.ext.cattools.categoryNewerPage('Category:Category name', 6)
-    -- Yes: { ns = 6, title = 'Example.svg', date = 'YYYY-MM-DD 23:59:59' }
-    -- No:  ?
+    -- OK: { ns = 6, title = 'Example.svg', date = 'YYYY-MM-DD 23:59:59' }
+    -- No: nil
 
 To know the less recent article added to `Category:Category name`
 
     mw.ext.cattools.categoryOlderPage('Category:Category name', 0)
-    -- Yes: { ns = 0, title = 'Free software', date = 'YYYY-MM-DD 23:59:59' }
-    -- No:  ?
+    -- OK: { ns = 0, title = 'Free software', date = 'YYYY-MM-DD 23:59:59' }
+    -- No: nil
 
 To know if the `Foo` page is in the `Category:Category name`:
 
@@ -28,7 +28,7 @@ The above, but recursively:
 
     mw.ext.cattools.isPageInCategoryRecursively('Foo', 'Category:Category name')
     -- Yes: integer (page ID)
-    -- No:  false
+    -- No:  nil
 
 To know if the pages "A", "B", "C" are in all the categories "X", "Y", "Z":
 
