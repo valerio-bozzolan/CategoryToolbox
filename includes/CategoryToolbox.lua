@@ -30,10 +30,10 @@ local function normalize_sortkey(sortkey)
 	return sortkey == 'SPACE_PREFIXED' and ' ' or sortkey
 end
 
-local function normalize_args(args)
+local function normalize_args( args )
 	return {
 		newer   = args.newer,
-		sortkey = normalize_sortkey(args.sortkey),
+		sortkey = normalize_sortkey( args.sortkey ),
 		limit   = args.limit,
 		offset  = args.offset
 	}
