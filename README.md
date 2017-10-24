@@ -30,10 +30,10 @@ The above, but recursively:
     -- Yes: integer (page ID)
     -- No:  nil
 
-To know if the pages "A", "B", "C" are in all the categories "X", "Y", "Z":
+To know if the pages "A", "B" are in all the categories "X", "Y", "Z":
 
     mw.ext.cattools.arePagesInCategoryRecursively(
-     { 'Foo', 'Bar' },
+     { 'A', 'B' },
      { 'Category:X`, `Category:Y`, `Category:Z` }
     )
     -- All Yes:       { 1234 = true, 1235 = true }
