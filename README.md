@@ -8,13 +8,13 @@ As every MediaWiki extension. It obviusly needs Scribunto in order to extend Lua
 ## Features
 To know the most recent file added to `Category:Category name`:
 
-    mw.ext.cattools.categoryNewerPage('Category:Category name', 6)
+    mw.ext.cattools.categoryNewestPage('Category:Category name', 6)
     -- OK: { ns = 6, title = 'Example.svg', date = 'YYYY-MM-DD 23:59:59' }
     -- No: nil
 
 To know the less recent article added to `Category:Category name`
 
-    mw.ext.cattools.categoryOlderPage('Category:Category name', 0)
+    mw.ext.cattools.categoryOldestPage('Category:Category name', 0)
     -- OK: { ns = 0, title = 'Free software', date = 'YYYY-MM-DD 23:59:59' }
     -- No: nil
 
