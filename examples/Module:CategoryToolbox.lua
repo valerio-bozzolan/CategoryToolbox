@@ -27,9 +27,9 @@ function p.categoryHasPage( frame )
 end
 
 -- Get a CategoryToolbox title object of the newest page in a category.
-function p.categoryNewerPage( frame )
+function p.categoryNewestPage( frame )
 	local args = frame:getParent( frame ).args
-	return wlink( mw.ext.cattools.categoryNewerPage(
+	return wlink( mw.ext.cattools.categoryNewestPage(
 		args[1], -- category
 		args[2], -- page
 		args
@@ -37,9 +37,9 @@ function p.categoryNewerPage( frame )
 end
 
 -- Get a CategoryToolbox title object of the oldest page in a category.
-function p.categoryOlderPage( frame )
+function p.categoryOldestPage( frame )
 	local args = frame:getParent( frame ).args
-	return wlink( mw.ext.cattools.categoryOlderPage(
+	return wlink( mw.ext.cattools.categoryOldestPage(
 		args[1], -- category
 		args[2], -- page
 		args

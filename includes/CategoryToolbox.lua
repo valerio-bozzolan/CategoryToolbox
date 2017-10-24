@@ -48,13 +48,13 @@ local function only_first( results )
 	return results and results[1] or nil
 end
 
-function cattools.categoryNewerPage( category_name, page_namespace, args )
+function cattools.categoryNewestPage( category_name, page_namespace, args )
 	args.newer = true
 	args.limit = 1
 	return only_first( cattools.categoryPages( category_name, page_namespace, args ) )
 end
 
-function cattools.categoryOlderPage( category_name, page_namespace, args )
+function cattools.categoryOldestPage( category_name, page_namespace, args )
 	args.newer = false
 	args.limit = 1
 	return only_first( cattools.categoryPages( category_name, page_namespace, args ) )
