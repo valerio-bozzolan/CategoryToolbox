@@ -8,36 +8,38 @@ As every MediaWiki extension. It obviusly needs Scribunto in order to extend Lua
 ## Features
 To know the most recent file added to `Category:Category name`:
 
-    mw.ext.cattools.categoryNewestPage('Category:Category name', 6)
+    mw.ext.cattools.newestPage('Category:Category name', 6)
     -- OK: { ns = 6, title = 'Example.svg', date = 'YYYY-MM-DD 23:59:59' }
     -- No: nil
 
 To know the less recent article added to `Category:Category name`
 
-    mw.ext.cattools.categoryOldestPage('Category:Category name', 0)
+    mw.ext.cattools.oldestPage('Category:Category name', 0)
     -- OK: { ns = 0, title = 'Free software', date = 'YYYY-MM-DD 23:59:59' }
     -- No: nil
 
 To know if the `Foo` page is in the `Category:Category name`:
 
-    mw.ext.cattools.categoryHasPage('Category:Category name', 'Foo')
+    mw.ext.cattools.hasPage('Category:Category name', 'Foo')
     -- Yes: true
     -- No:  false
 
 The above, but recursively:
 
-    mw.ext.cattools.isPageInCategoryRecursively('Foo', 'Category:Category name')
-    -- Yes: integer (page ID)
-    -- No:  nil
+    mw.ext.cattools.hasPage('Category:Category name', 'Foo', '-1')
+    -- Yes: true
+    -- No:  false
 
-To know if the pages "A", "B" are in all the categories "X", "Y", "Z":
+To know if the page "A" is in all the categories "X", "Y", "Z":
 
-    mw.ext.cattools.arePagesInCategoryRecursively(
-     { 'A', 'B' },
-     { 'Category:X`, `Category:Y`, `Category:Z` }
+    mw.ext.cattools.havePages(
+    	{ 'Category:X`, `Category:Y`, `Category:Z` },
+    	{ 'A' }
     )
-    -- All Yes:       { 1234 = true, 1235 = true }
-    -- Only "Bar" no: { 1234 = true, 1235 = false }
+    -- OK:     { 1234 = true }
+    -- Not OK: { }
+    --
+    -- ↑ It's a table of matching page IDs
 
 Note that, where the input is a category, you can insert "Category:Foo" as well as only "Foo".
 

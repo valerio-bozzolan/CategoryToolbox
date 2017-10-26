@@ -21,11 +21,10 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	protected $db;
 
 	function register() {
-
 		$this->getEngine()->registerInterface( __DIR__ . '/CategoryToolbox.lua', [
-			'categoryHasPage'      => [ $this, 'categoryHasPage' ],
 			'categoryPages'        => [ $this, 'categoryPages' ],
-			'arePagesInCategories' => [ $this, 'arePagesInCategories' ]
+			'categoryHasPage'      => [ $this, 'categoryHasPage' ],
+			'categoriesHavePages'  => [ $this, 'categoriesHavePages' ]
 		] );
 
 		// DB_REPLICA is not defined in MediaWiki 1.27.3
@@ -38,31 +37,36 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	 * To maintain the query clean you always have to specify the namespace and you have
 	 * to remove the prefix from the wanted page title.
 	 *
-	 * @param string $category_name Category name (without prefix)
-	 * @param int $page_namespace Page namespace (number)
-	 * @param string $page_title Page title (without prefix)
+	 * @param string $category       Category name (without prefix)
+	 * @param int    $page_namespace Page namespace (number)
+	 * @param string $page_title     Page title (without prefix)
 	 * @return mixed Lua boolean
 	 */
-	public function categoryHasPage( $category_name, $page_namespace, $page_title ) {
-		$results = $this->selectCategoryLinks( $category_name, $page_namespace, $page_title );
+	public function categoryHasPage( $category, $page_namespace, $page_title ) {
+		$results = $this->selectCategoryLinks( $category, $page_namespace, $page_title );
 		return [ 0 < $results->numRows() ];
 	}
 
 	/**
 	 * Check if some pages are in some categories.
 	 *
-	 * @param array $page_IDs Page IDs
-	 * @param array $category_names Category names without prefix
-	 * @param array $mode 'AND' means that the page must be in all categories;
-	 *                    'OR' means that the page must be at least in one category.
+	 * @param array $categories Category names without prefix
+	 * @param array $page_IDs   Page IDs
+	 * @param array $mode       'AND' means that the page must be in all categories;
+	 *                          'OR' means that the page must be at least in one category.
 	 * @return mixed Lua table
 	 */
-	public function arePagesInCategories( $page_IDs, $category_names, $mode = 'AND' ) {
-		$cf = new CategoryFinder;
-		$cf->seed( $page_IDs, $category_names, $mode );
-		$result = $cf->run();
+	public function categoriesHavePages( $categories, $page_IDs, $mode = 'AND' ) {
 
+		// Minutes wasted in thinking about how many times calling this: 15
 		$this->incrementExpensiveFunctionCount();
+		//$this->incrementExpensiveFunctionCount();
+		//$this->incrementExpensiveFunctionCount();
+		//$this->incrementExpensiveFunctionCount();
+
+		$cf = new CategoryFinder;
+		$cf->seed( $page_IDs, $categories, $mode );
+		$result = $cf->run();
 
 		return [ self::toLuaTable( $result ) ];
 	}
@@ -72,17 +76,17 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	 *
 	 * This is *not* a way to count the pages in a category. Use `mw.site.stats.pagesInCategory` instead.
 	 *
-	 * @param string $category_name Category name (without prefix)
-	 * @param int $page_namespace Page namespace (number)
-	 * @param array $args More arguments
-	 * @param int $limit Result limit. Even if this method is intended only to retrieve a couple of sub-categories, it can be used also for pages.
-	 * @param int $offset Result offset.
+	 * @param string $category Category name (without prefix)
+	 * @param int    $ns       Page namespace (number)
+	 * @param array  $args     More arguments
+	 * @param int    $limit    Result limit. Even if this method is intended only to retrieve a couple of sub-categories, it can be used also for pages.
+	 * @param int    $offset   Result offset.
 	 * @return mixed Lua table
 	 */
-	public function categoryPages($category_name, $page_namespace = null, $args = [] ) {
+	public function categoryPages( $category, $ns = null, $args = [] ) {
 		return [
 			self::categoryLinksToLuaTable(
-				$this->selectCategoryLinks($category_name, $page_namespace, null, $args )
+				$this->selectCategoryLinks( $category, $ns, null, $args )
 			)
 		];
 	}
@@ -95,17 +99,17 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	/**
 	 * To retrieve what is linked into a category.
 	 *
-	 * @param string $category_name Category name (without prefix)
-	 * @param int $page_namespace Restrict to a specific namespace (number)
-	 * @param string $page_title Restrict to a specific page title (without prefix)
-	 * @param array $args More arguments:
+	 * @param string $category       Category name (without prefix)
+	 * @param int    $page_namespace Restrict to a specific namespace (number)
+	 * @param string $page_title     Restrict to a specific page title (without prefix)
+	 * @param array  $args           More arguments:
 		* 'sortkey' => string|null: Can be used to filter category entries basing on which character index them.
 		* 'newer'   => bool|null:   Can be used to order by the latest update.
 	 	* 'limit'   => int|null:    Intended only to retrieve a couple of sub-categories, can be used to limit the result.
 		* 'offset'  => int|null:    Can be used to skip n results.
 	 * @return IResultWrapper|bool
 	 */
-	private function selectCategoryLinks($category_name, $page_namespace = null, $page_title = null, $args = [] ) {
+	private function selectCategoryLinks( $category, $page_namespace = null, $page_title = null, $args = [] ) {
 
 		// Database fields to be selected
 		$select = [
@@ -122,7 +126,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 
 		$conditions = [
 			// Restrict to a certain category
-			'cl_to' => self::space2underscore( $category_name ),
+			'cl_to' => self::space2underscore( $category ),
 
 			// Join category and pages
 			'cl_from = page_id'
@@ -162,14 +166,11 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 			$options['OFFSET'] = (int)$args['offset'];
 		}
 
-		// Where are we from? Boh!
-		// Is there life on Mars? Boh!
-		// Should a simple read-only query being considered expensive? Boh!
-		// How many minutes have you wasted in thinking if the next line should be commented? 23!
 		$this->incrementExpensiveFunctionCount();
 
 		// The user want more?
 		if ( null == $page_namespace || null == $page_title || $options['LIMIT'] > self::DEFAULT_LIMIT ) {
+			// Encourage small requests
 			$this->incrementExpensiveFunctionCount();
 		}
 
@@ -182,7 +183,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	 * @param IResultWrapper|bool $results Result from the Wikimedia\Rdbms\Database::select
 	 * @return array Lua object
 	 */
-	private static function categoryLinksToLuaTable($results) {
+	private static function categoryLinksToLuaTable( $results ) {
 		$rows = [];
 		foreach ($results as $result) {
 			$row = [
@@ -205,42 +206,42 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	}
 
 	/**
-	 * This takes an array and converts it so, that the result is a viable Lua table.
+	 * Convert an array to a viable Lua table.
 	 * I.e. the resulting table has its numerical indices start with 1
 	 * If `$ar` is not an array, it is simply returned.
 	 *
-	 * @param mixed $ar
+	 * @param mixed $array
 	 * @return mixed Lua object
 	 * @see https://github.com/SemanticMediaWiki/SemanticScribunto/blob/master/src/ScribuntoLuaLibrary.php
 	 */
-	private static function toLuaTable( $ar ) {
-		if ( is_array( $ar ) ) {
-			foreach ( $ar as $key => $value ) {
-				$ar[$key] = self::toLuaTable( $value );
+	private static function toLuaTable( $array ) {
+		if ( is_array( $array ) ) {
+			foreach ( $array as $key => $value ) {
+				$array[$key] = self::toLuaTable( $value );
 			}
-			array_unshift( $ar, '' );
-			unset( $ar[0] );
+			array_unshift( $array, '' );
+			unset( $array[0] );
 		}
-		return $ar;
+		return $array;
 	}
 
 	/**
 	 * Normalize a page title. E.g. "Category foo" → "Category_foo".
 	 *
-	 * @param string
+	 * @param string $title
 	 * @return string
 	 */
-	private static function space2underscore($page_title) {
-		return str_replace(' ', '_', $page_title);
+	private static function space2underscore( $title ) {
+		return str_replace(' ', '_', $title);
 	}
 
 	/**
 	 * Ripristinate the spaces. E.g. "Category_foo" → "Category foo".
 	 *
-	 * @param string
+	 * @param string $title
 	 * @return string
 	 */
-	private static function underscore2space($page_title) {
-		return str_replace('_', ' ', $page_title);
+	private static function underscore2space( $title ) {
+		return str_replace('_', ' ', $title);
 	}
 }
