@@ -1,1 +1,1 @@
-<includeonly>{{#invoke:CategoryToolbox|categoryNewestPage}}</includeonly>
+<includeonly>{{#invoke:CategoryToolbox|newestPage}}</includeonly>

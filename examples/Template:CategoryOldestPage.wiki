@@ -1,1 +1,1 @@
-<includeonly>{{#invoke:CategoryToolbox|categoryOldestPage}}</includeonly>
+<includeonly>{{#invoke:CategoryToolbox|oldestPage}}</includeonly>

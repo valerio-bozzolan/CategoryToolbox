@@ -1,14 +1,5 @@
--------------------------------------------------------------------
--- This is an example of a [[Module:CategoryToolbox]]
--- that can be useful to use `mw.ext.cattools` tools from wikicode.
---
--- @url    https://github.com/valerio-bozzolan/CategoryToolbox
--- @author [[:w:it:Utente:Valerio Bozzolan]]
--------------------------------------------------------------------
-
 local p = {}
 
--- Get a wikilink of a page from a CategoryToolbox title object.
 local function wlink( page )
 	if not page then
 		return nil
@@ -17,43 +8,34 @@ local function wlink( page )
 		' (' .. page.date .. ')'
 end
 
--- Check if a category has a page (no recursion).
-function p.categoryHasPage( frame )
+function p.newestPage( frame )
 	local args = frame:getParent( frame ).args
-	return mw.ext.cattools.categoryHasPage(
+	return wlink( mw.ext.cattools.newestPage(
 		args[1], -- category
-		args[2]  -- page
+		args[2], -- page
+		args
+	) )
+end
+
+function p.oldestPage( frame )
+	local args = frame:getParent( frame ).args
+	return wlink( mw.ext.cattools.oldestPage(
+		args[1], -- category
+		args[2], -- page
+		args
+	) )
+end
+
+function p.hasPage( frame )
+	local args = frame:getParent( frame ).args
+	args[3] = tonumber( args[3] )
+	return mw.ext.cattools.hasPage(
+		args[1], -- category
+		args[2], -- page
+		args[3]  -- depth
 	) and 1 or nil
 end
 
--- Get a CategoryToolbox title object of the newest page in a category.
-function p.categoryNewestPage( frame )
-	local args = frame:getParent( frame ).args
-	return wlink( mw.ext.cattools.categoryNewestPage(
-		args[1], -- category
-		args[2], -- page
-		args
-	) )
-end
-
--- Get a CategoryToolbox title object of the oldest page in a category.
-function p.categoryOldestPage( frame )
-	local args = frame:getParent( frame ).args
-	return wlink( mw.ext.cattools.categoryOldestPage(
-		args[1], -- category
-		args[2], -- page
-		args
-	) )
-end
-
--- Check if a page is in a certain category (recursively).
-function p.isPageInCategoryRecursively( frame )
-	local args = frame:getParent( frame ).args
-	return mw.ext.cattools.isPageInCategoryRecursively(
-		args[1], -- page
-		args[2], -- category
-		args[3]  -- mode
-	)
-end
 
 return p
+
