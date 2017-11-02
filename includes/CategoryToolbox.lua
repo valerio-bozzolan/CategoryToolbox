@@ -99,10 +99,8 @@ function cattools.havePages( categories, pages, depth, mode )
 	-- use category names instead of categories with prefixes
 	local cats = {}
 	for k, category in pairs( categories ) do
-		local category = mw.title.new( category )
-		if category then
-			cats[ #cats + 1 ] = category.text
-		end
+		local category = mw.title.new( category ) or error('invalid category')
+		cats[ #cats + 1 ] = category.text
 	end
 
 	-- retrieve page IDs from page titles
@@ -139,8 +137,9 @@ function cattools.hasPage( category, page, depth )
 		return #results > 0
 	end
 
-	local c = mw.title.new( category )
+	local c = mw.title.new( category ) or error('invalid category')
 	local p = mw.title.new( page )
+
 	if c and p then
 		return php.categoryHasPage( c.text, p.namespace, p.text )
 	end

@@ -37,9 +37,9 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	 * To maintain the query clean you always have to specify the namespace and you have
 	 * to remove the prefix from the wanted page title.
 	 *
-	 * @param string $category       Category name (without prefix)
+	 * @param string $category       Category name (formally valid, without prefix)
 	 * @param int    $page_namespace Page namespace (number)
-	 * @param string $page_title     Page title (without prefix)
+	 * @param string $page_title     Page title (formally valid, without prefix)
 	 * @return mixed Lua boolean
 	 */
 	public function categoryHasPage( $category, $page_namespace, $page_title ) {
@@ -50,7 +50,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	/**
 	 * Check if some pages are in some categories.
 	 *
-	 * @param array $categories Category names without prefix
+	 * @param array $categories Category names (formally valids, without prefix)
 	 * @param array $page_IDs   Page IDs
 	 * @param array $mode       'AND' means that the page must be in all categories;
 	 *                          'OR' means that the page must be at least in one category.
@@ -76,7 +76,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	 *
 	 * This is *not* a way to count the pages in a category. Use `mw.site.stats.pagesInCategory` instead.
 	 *
-	 * @param string $category Category name (without prefix)
+	 * @param string $category Category name (formally valid, without prefix)
 	 * @param int    $ns       Page namespace (number)
 	 * @param array  $args     More arguments
 	 * @param int    $limit    Result limit. Even if this method is intended only to retrieve a couple of sub-categories, it can be used also for pages.
@@ -99,9 +99,9 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	/**
 	 * To retrieve what is linked into a category.
 	 *
-	 * @param string $category       Category name (without prefix)
+	 * @param string $category       Category name (formally valid, without prefix)
 	 * @param int    $page_namespace Restrict to a specific namespace (number)
-	 * @param string $page_title     Restrict to a specific page title (without prefix)
+	 * @param string $page_title     Restrict to a specific page title (formally valid)
 	 * @param array  $args           More arguments:
 		* 'sortkey' => string|null: Can be used to filter category entries basing on which character index them.
 		* 'newer'   => bool|null:   Can be used to order by the latest update.
@@ -110,6 +110,8 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 	 * @return IResultWrapper|bool
 	 */
 	private function selectCategoryLinks( $category, $page_namespace = null, $page_title = null, $args = [] ) {
+
+		$category_key = Title::newFromTextThrow( $category, NS_CATEGORY )->getDBKey();
 
 		// Database fields to be selected
 		$select = [
@@ -126,7 +128,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 
 		$conditions = [
 			// Restrict to a certain category
-			'cl_to' => self::space2underscore( $category ),
+			'cl_to' => $category_key,
 
 			// Join category and pages
 			'cl_from = page_id'
@@ -139,7 +141,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 
 		// Restrict to a certain page title?
 		if ( null !== $page_title ) {
-			$conditions['page_title'] = self::space2underscore( $page_title );
+			$conditions['page_title'] = Title::newFromTextThrow( $page_title );
 		}
 
 		// Restrict to a certain prefix sortkey?
@@ -193,7 +195,7 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 			];
 
 			// Cleaning title
-			$row['title'] = self::underscore2space( $result->page_title );
+			$row['title'] = Title::newFromDBKey( $result->page_title )->getText();
 
 			// Optional columns
 			if ( isset( $result->cl_timestamp ) ) {
@@ -223,25 +225,5 @@ class CategoryToolbox_LuaLibrary extends Scribunto_LuaLibraryBase {
 			unset( $array[0] );
 		}
 		return $array;
-	}
-
-	/**
-	 * Normalize a page title. E.g. "Category foo" → "Category_foo".
-	 *
-	 * @param string $title
-	 * @return string
-	 */
-	private static function space2underscore( $title ) {
-		return str_replace(' ', '_', $title);
-	}
-
-	/**
-	 * Ripristinate the spaces. E.g. "Category_foo" → "Category foo".
-	 *
-	 * @param string $title
-	 * @return string
-	 */
-	private static function underscore2space( $title ) {
-		return str_replace('_', ' ', $title);
 	}
 }
